@@ -5,19 +5,21 @@
  */
 package com.embeddediq.voctune;
 
+import java.io.BufferedWriter;
+import java.io.DataOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.UnsupportedAudioFileException;
 import org.jtransforms.fft.FloatFFT_1D;
-import pl.edu.icm.jlargearrays.FloatLargeArray;
 
 /**
  *
@@ -60,42 +62,50 @@ public class analyse {
     
     public void start() throws UnsupportedAudioFileException, IOException
     {
-        URL x = analyse.class.getResource("/audio/audiocheck.wav");
+        URL x = analyse.class.getResource("/audio/all/39184__jobro__piano-ff-037.wav");
         // Open audio stream
         try (AudioInputStream as = AudioSystem.getAudioInputStream(x))
         {
-            AudioFormat af = as.getFormat();
-            long duration = as.getFrameLength();
-            
-            //int rate = (int)as.getFormat().getSampleRate(); // 44100;
-            //int bytes = as.getFormat().getFrameSize();
-            int step = af.getChannels() * af.getFrameSize();
-            int sample_sz_bytes = step * sample_sz; // Get stereo data
+            try (BufferedWriter os = new BufferedWriter(new FileWriter("text.csv")))
+            {
+                AudioFormat af = as.getFormat();
 
-            // Load the audio and FFT library
-            byte [] raw_data = new byte[sample_sz_bytes];
-            float [] data = new float[sample_sz];
-            //FloatLargeArray data = new FloatLargeArray(duration);
-            //data.setShort(as.read(bytes), 0);
-            FloatFFT_1D fft = new FloatFFT_1D(sample_sz);
+                //int rate = (int)as.getFormat().getSampleRate(); // 44100;
+                //int bytes = as.getFormat().getFrameSize();
+                int step = af.getChannels() * af.getFrameSize();
+                int sample_sz_bytes = step * sample_sz; // Get stereo data
 
-            // Process the audio
-            long offset = 0;
-            long limit = as.getFrameLength(); //  data.length();
-            while (offset < limit) {
-                as.read(raw_data, 0, sample_sz_bytes);
-                ByteBuffer bb = ByteBuffer.wrap(raw_data);
-                bb = bb.order(ByteOrder.nativeOrder());
-                ShortBuffer sb = bb.asShortBuffer();
-                // IntBuffer ib = bb.asIntBuffer();
-                for (int i=0; i<sample_sz; i++)
-                {
-                    data[i] = (float)sb.get(i);
-                }
-                fft.realForward(data);
-                offset += sample_sz;
+                // Load the audio and FFT library
+                byte [] raw_data = new byte[sample_sz_bytes];
+                float [] data = new float[sample_sz];
+                //FloatLargeArray data = new FloatLargeArray(duration);
+                //data.setShort(as.read(bytes), 0);
+                FloatFFT_1D fft = new FloatFFT_1D(sample_sz);
                 
-                // TODO - draw sample
+                
+                // Process the audio
+                long offset = 0;
+                long duration = as.getFrameLength(); //  data.length();
+                while (offset < duration) {
+                    as.read(raw_data, 0, sample_sz_bytes);
+                    ByteBuffer bb = ByteBuffer.wrap(raw_data);
+                    bb = bb.order(ByteOrder.nativeOrder());
+                    ShortBuffer sb = bb.asShortBuffer();
+                    // IntBuffer ib = bb.asIntBuffer();
+                    for (int i=0; i<sample_sz; i++)
+                    {
+                        data[i] = (float)sb.get(i);
+                    }
+                    fft.realForward(data);
+                    for (float f: data)
+                    {
+                        os.write(String.format("%.2f, ", f));
+                    }
+                    os.write("\r\n");
+                    offset += sample_sz;
+
+                    // TODO - draw sample
+                }
             }
         }
     }

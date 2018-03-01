@@ -126,6 +126,7 @@ public class analyse {
                         offset += sample_sz;
 
                         // TODO - draw sample
+                        // dB = 20 * log10(level)
                     }
                 }
             }

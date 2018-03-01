@@ -6,15 +6,12 @@
 package com.embeddediq.voctune;
 
 import java.io.BufferedWriter;
-import java.io.DataOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.ShortBuffer;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
@@ -30,7 +27,8 @@ public class analyse {
     // For 44,100 samples/second
     // Nyquist-Shannon max frequency is 22,050 Hz
 
-    int sample_sz = 4096;
+    //int sample_sz = 4096;
+    float step_sz = 2.5f; // 5 Hz
     // Number of bins = 4096
     // 22,050 / 4096 FFT bins = 5 Hz per bin
     // This is fine for middle A4 (440 Hz)
@@ -73,15 +71,15 @@ public class analyse {
                 //int rate = (int)as.getFormat().getSampleRate(); // 44100;
                 //int bytes = as.getFormat().getFrameSize();
                 int step = af.getChannels() * af.getFrameSize();
+                int sample_sz = (int)(af.getSampleRate() / (2.0f * step_sz));
                 int sample_sz_bytes = step * sample_sz; // Get stereo data
 
                 // Load the audio and FFT library
                 byte [] raw_data = new byte[sample_sz_bytes];
                 float [] data = new float[sample_sz];
-                //FloatLargeArray data = new FloatLargeArray(duration);
-                //data.setShort(as.read(bytes), 0);
-                FloatFFT_1D fft = new FloatFFT_1D(sample_sz);
-                
+
+                // Create the fourier transform
+                FloatFFT_1D fft = new FloatFFT_1D(sample_sz);                
                 
                 // Process the audio
                 long offset = 0;
@@ -97,6 +95,7 @@ public class analyse {
                         data[i] = (float)sb.get(i);
                     }
                     fft.realForward(data);
+                    fft.
                     for (float f: data)
                     {
                         os.write(String.format("%.2f, ", f));

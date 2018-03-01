@@ -60,50 +60,73 @@ public class analyse {
     
     public void start() throws UnsupportedAudioFileException, IOException
     {
-        URL x = analyse.class.getResource("/audio/all/39184__jobro__piano-ff-037.wav");
         // Open audio stream
-        try (AudioInputStream as = AudioSystem.getAudioInputStream(x))
+        try (BufferedWriter os = new BufferedWriter(new FileWriter("text.csv")))
         {
-            try (BufferedWriter os = new BufferedWriter(new FileWriter("text.csv")))
+            String[] res = new String[] {
+                "/audio/all/39184__jobro__piano-ff-037.wav",
+                "/audio/all/39185__jobro__piano-ff-038.wav",
+                "/audio/all/39186__jobro__piano-ff-039.wav",
+            };
+            // AudioFormat af = getFormat();
+            URL url = analyse.class.getResource(res[0]);
+            AudioFormat af;
+            try (AudioInputStream as = AudioSystem.getAudioInputStream(url)) {
+                af = as.getFormat();
+            }
+
+            // Step size, sample_sz and byte count
+            int sample_sz = (int)(af.getSampleRate() / (2.0f * step_sz));
+            int step = af.getChannels() * af.getFrameSize();
+            int sample_sz_bytes = step * sample_sz; // Get stereo data
+
+            // Write CSV header
+            for (int i=0; i<(sample_sz >> 1); i++)
             {
-                AudioFormat af = as.getFormat();
+                os.write(String.format("%.1f, ", i * step_sz));
+            }
+            os.write("\r\n");
 
-                //int rate = (int)as.getFormat().getSampleRate(); // 44100;
-                //int bytes = as.getFormat().getFrameSize();
-                int step = af.getChannels() * af.getFrameSize();
-                int sample_sz = (int)(af.getSampleRate() / (2.0f * step_sz));
-                int sample_sz_bytes = step * sample_sz; // Get stereo data
+            // Load the audio and FFT library
+            byte [] raw_data = new byte[sample_sz_bytes];
+            float [] data = new float[sample_sz];
+            
+            for (String resStr: res)
+            {
+                url = analyse.class.getResource(resStr);
+                try (AudioInputStream as = AudioSystem.getAudioInputStream(url))
+                {
+                    // Create the fourier transform
+                    FloatFFT_1D fft = new FloatFFT_1D(sample_sz);                
 
-                // Load the audio and FFT library
-                byte [] raw_data = new byte[sample_sz_bytes];
-                float [] data = new float[sample_sz];
+                    // Process the audio
+                    long offset = 0;
+                    long duration = as.getFrameLength(); //  data.length();
+                    while (offset < duration) {
+                        
+                        // Read a block of samples
+                        as.read(raw_data, 0, sample_sz_bytes);
+                        ByteBuffer bb = ByteBuffer.wrap(raw_data);
+                        bb = bb.order(af.isBigEndian() ? ByteOrder.BIG_ENDIAN : ByteOrder.LITTLE_ENDIAN);
+                        ShortBuffer sb = bb.asShortBuffer();
+                        
+                        // Calculate Discrete FFT
+                        for (int i=0; i<sample_sz; i++)
+                        {
+                            data[i] = (float)sb.get(i);
+                        }
+                        fft.realForward(data);
+                        
+                        // Create a CSV output
+                        for (int i=0; i<(sample_sz-1); i+=2) // float f: data)
+                        {
+                            os.write(String.format("%.2f, ", Math.sqrt(Math.abs(Math.pow(data[i], 2) - Math.pow(data[i+1], 2)))));
+                        }
+                        os.write("\r\n");
+                        offset += sample_sz;
 
-                // Create the fourier transform
-                FloatFFT_1D fft = new FloatFFT_1D(sample_sz);                
-                
-                // Process the audio
-                long offset = 0;
-                long duration = as.getFrameLength(); //  data.length();
-                while (offset < duration) {
-                    as.read(raw_data, 0, sample_sz_bytes);
-                    ByteBuffer bb = ByteBuffer.wrap(raw_data);
-                    bb = bb.order(ByteOrder.nativeOrder());
-                    ShortBuffer sb = bb.asShortBuffer();
-                    // IntBuffer ib = bb.asIntBuffer();
-                    for (int i=0; i<sample_sz; i++)
-                    {
-                        data[i] = (float)sb.get(i);
+                        // TODO - draw sample
                     }
-                    fft.realForward(data);
-                    fft.
-                    for (float f: data)
-                    {
-                        os.write(String.format("%.2f, ", f));
-                    }
-                    os.write("\r\n");
-                    offset += sample_sz;
-
-                    // TODO - draw sample
                 }
             }
         }
